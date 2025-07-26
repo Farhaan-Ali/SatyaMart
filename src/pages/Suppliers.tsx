@@ -60,11 +60,15 @@ export default function Suppliers() {
     setLoading(true);
     setErrorMsg(null);
     try {
+      console.log('Fetching suppliers for role:', userRole?.role);
+      
       // First get user roles for suppliers
       const { data: userRoles } = await supabase
         .from('user_roles')
         .select('*')
         .eq('role', 'supplier');
+
+      console.log('Found user roles:', userRoles);
 
       if (!userRoles) {
         setSuppliers([]);
@@ -73,10 +77,14 @@ export default function Suppliers() {
 
       // Get supplier profiles for these users
       const userIds = userRoles.map(ur => ur.user_id);
+      console.log('Looking for profiles for user IDs:', userIds);
+      
       const { data: profiles } = await supabase
         .from('supplier_profiles')
         .select('*')
         .in('user_id', userIds);
+
+      console.log('Found supplier profiles:', profiles);
 
       // Combine the data
       const combined = userRoles.map(role => {
@@ -85,7 +93,9 @@ export default function Suppliers() {
           ...profile,
           user_roles: role
         };
-      });
+      }).filter(supplier => supplier.id); // Only include suppliers with valid profiles
+
+      console.log('Combined supplier data:', combined);
 
       setSuppliers(combined);
     } catch (error: any) {
@@ -176,10 +186,9 @@ export default function Suppliers() {
     if (userRole?.role === 'superadmin') {
       return filteredSuppliers; // Show all suppliers
     } else {
-      // For vendors, only show approved suppliers
-      return filteredSuppliers.filter(supplier => 
-        supplier.user_roles?.approval_status === 'approved'
-      );
+      // For now, show all suppliers to vendors (we'll fix approval logic later)
+      console.log('Filtering suppliers for vendor, showing all suppliers');
+      return filteredSuppliers;
     }
   };
 

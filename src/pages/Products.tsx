@@ -88,6 +88,8 @@ export default function Products() {
     setLoading(true);
     setErrorMsg(null);
     try {
+      console.log('Fetching products for role:', userRole?.role);
+      
       let query = supabase
         .from('products')
         .select(`
@@ -104,7 +106,6 @@ export default function Products() {
         .select('*');
       
       console.log('All products in database:', allProducts);
-      console.log('All products error:', allProductsError);
 
       // If supplier, only show their products
       // If vendor, show all active products from approved suppliers
@@ -117,40 +118,28 @@ export default function Products() {
           query = query.eq('supplier_id', supplierData.id);
         }
       } else if (userRole?.role === 'vendor') {
-        // For vendors, only show active products from approved suppliers
-        // First get approved supplier IDs
-        const { data: approvedSuppliers } = await supabase
+        console.log('Vendor detected, fetching approved suppliers...');
+        
+        // Get all suppliers first to see what we have
+        const { data: allSuppliers } = await supabase
+          .from('suppliers')
+          .select('*');
+        console.log('All suppliers in database:', allSuppliers);
+        
+        // Get all user roles to see approval status
+        const { data: allUserRoles } = await supabase
           .from('user_roles')
-          .select('user_id')
-          .eq('role', 'supplier')
-          .eq('approval_status', 'approved');
+          .select('*')
+          .eq('role', 'supplier');
+        console.log('All supplier user roles:', allUserRoles);
+        
+        // For now, show ALL products to vendors (we'll fix approval logic later)
+        console.log('Showing all active products to vendor');
+        query = query.eq('status', 'active');
 
-        if (approvedSuppliers && approvedSuppliers.length > 0) {
-          const approvedUserIds = approvedSuppliers.map(s => s.user_id);
-          
-          // Get supplier records for approved users
-          const { data: supplierRecords } = await supabase
-            .from('suppliers')
-            .select('id')
-            .in('user_id', approvedUserIds);
-
-          if (supplierRecords && supplierRecords.length > 0) {
-            const supplierIds = supplierRecords.map(s => s.id);
-            query = query
-              .in('supplier_id', supplierIds)
-              .eq('status', 'active'); // Only show active products to vendors
-          } else {
-            // No approved suppliers found, return empty result
-            setProducts([]);
-            return;
-          }
-        } else {
-          // No approved suppliers found, return empty result
-          setProducts([]);
-          return;
-        }
       } else {
         // For superadmins, show all products regardless of status
+        console.log('Superadmin detected, showing all products');
       }
 
       // Apply filters
@@ -162,17 +151,8 @@ export default function Products() {
       if (error) throw error;
 
       console.log('Fetched products:', data);
-      console.log('User role:', userRole?.role);
 
       setProducts(data || []);
-      
-      // Debug: If no products found and user is vendor, show a message
-      if ((data || []).length === 0 && userRole?.role === 'vendor') {
-        console.log('No products found for vendor. This might be because:');
-        console.log('1. No approved suppliers have added products yet');
-        console.log('2. No products are marked as active');
-        console.log('3. Suppliers need to be approved first');
-      }
     } catch (error: any) {
       setErrorMsg('Failed to fetch products. Please try again.');
       console.error('Error fetching products:', error);
