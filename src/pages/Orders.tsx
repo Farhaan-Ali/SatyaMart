@@ -499,12 +499,12 @@ export default function Orders() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center space-x-2">
                       <User className="w-4 h-4 text-muted-foreground" />
-                      <span>{selectedOrder.vendor_profiles?.full_name}</span>
+                      <span>{selectedOrder.users?.vendor_profiles?.full_name || 'Unknown'}</span>
                     </div>
-                    {selectedOrder.vendor_profiles?.company_name && (
+                    {selectedOrder.users?.vendor_profiles?.company_name && (
                       <div className="flex items-center space-x-2">
                         <Building2 className="w-4 h-4 text-muted-foreground" />
-                        <span>{selectedOrder.vendor_profiles.company_name}</span>
+                        <span>{selectedOrder.users.vendor_profiles.company_name}</span>
                       </div>
                     )}
                   </div>

@@ -120,23 +120,8 @@ export default function Products() {
       } else if (userRole?.role === 'vendor') {
         console.log('Vendor detected, fetching approved suppliers...');
         
-        // Get all suppliers first to see what we have
-        const { data: allSuppliers } = await supabase
-          .from('suppliers')
-          .select('*');
-        console.log('All suppliers in database:', allSuppliers);
-        
-        // Get all user roles to see approval status
-        const { data: allUserRoles } = await supabase
-          .from('user_roles')
-          .select('*')
-          .eq('role', 'supplier');
-        console.log('All supplier user roles:', allUserRoles);
-        
-        // For now, show ALL products to vendors (we'll fix approval logic later)
-        console.log('Showing all active products to vendor');
+        // For now, show all active products to vendors
         query = query.eq('status', 'active');
-
       } else {
         // For superadmins, show all products regardless of status
         console.log('Superadmin detected, showing all products');
