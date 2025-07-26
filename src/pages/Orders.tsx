@@ -44,7 +44,7 @@ interface Order {
     name: string;
     contact_email: string;
   };
-  profiles?: {
+  vendor_profiles?: {
     full_name: string;
     company_name: string;
   };
@@ -83,7 +83,7 @@ export default function Orders() {
             name,
             contact_email
           ),
-          profiles (
+          vendor_profiles!orders_user_id_fkey (
             full_name,
             company_name
           )
@@ -174,8 +174,8 @@ export default function Orders() {
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.products?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.suppliers?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.profiles?.company_name.toLowerCase().includes(searchTerm.toLowerCase());
+                         order.vendor_profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.vendor_profiles?.company_name?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -366,7 +366,7 @@ export default function Orders() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <User className="w-4 h-4 text-muted-foreground" />
-                      <span>Customer: {order.profiles?.full_name || order.profiles?.company_name}</span>
+                      <span>Customer: {order.vendor_profiles?.full_name || order.vendor_profiles?.company_name}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Truck className="w-4 h-4 text-muted-foreground" />

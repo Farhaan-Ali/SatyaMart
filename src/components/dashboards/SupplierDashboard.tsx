@@ -71,7 +71,7 @@ export function SupplierDashboard() {
         .select(`
           *,
           products (name),
-          profiles (full_name, company_name)
+          vendor_profiles (full_name, company_name)
         `)
         .eq('supplier_id', supplierData.id)
         .order('created_at', { ascending: false })
