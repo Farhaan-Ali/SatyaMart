@@ -78,61 +78,6 @@ export default function Products() {
     status: 'active',
     image_url: '',
     sku: ''
-  });
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchProducts();
-    }
-  }, [user?.id]);
-
-  const fetchProducts = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      console.log('=== PRODUCTS DEBUG START ===');
-      console.log('Current user role:', userRole?.role);
-      console.log('Current user ID:', user?.id);
-      
-      // First, let's just get ALL products without any complex queries
-      const { data: allProducts, error: allProductsError } = await supabase
-        .from('products')
-        .select('*');
-
-      console.log('🔍 ALL PRODUCTS IN DATABASE:', allProducts);
-      console.log('🔍 Number of products in DB:', allProducts?.length || 0);
-      
-      if (!allProducts || allProducts.length === 0) {
-        console.log('❌ NO PRODUCTS FOUND IN DATABASE AT ALL');
-        console.log('🔧 Let me try to create some sample data...');
-        
-        // Only create sample data if user is authenticated
-        if (user?.id) {
-          await createSampleDataIfNeeded();
-        }
-        
-        // Retry fetching all products after creating sample data
-        const { data: retryProducts } = await supabase
-          .from('products')
-          .select('*');
-        
-        console.log('🔄 RETRY: Products after sample data creation:', retryProducts);
-        
-        if (!retryProducts || retryProducts.length === 0) {
-          console.log('❌ Still no products after sample data creation');
-          setProducts([]);
-          return;
-        }
-        
-        // Use the retry products
-        console.log('✅ Using retry products:', retryProducts);
-        setProducts(retryProducts);
-        return;
-      }
-      
-      // If we have products, get them with supplier info
-      const { data: productsWithSuppliers, error: suppliersError } = await supabase
-        .from('products')
         .select(`
           *,
           suppliers (
@@ -140,20 +85,24 @@ export default function Products() {
             contact_email
           )
         `);
-      
-      if (suppliersError) {
-        console.log('⚠️ Error fetching supplier info, using products without supplier data');
-        setProducts(allProducts);
-      } else {
-        console.log('✅ FINAL FETCHED PRODUCTS WITH SUPPLIERS:', productsWithSuppliers);
-        setProducts(productsWithSuppliers || allProducts);
-      }
-      
-      console.log('=== PRODUCTS DEBUG END ===');
+
+      if (error) {
+        console.log('❌ Error fetching products with suppliers:', error);
+        // Try without supplier info
+        const { data: simpleProducts } = await supabase
+          .from('products')
+          .select('*');
+        console.log('📦 Fallback products:', simpleProducts);
+        setProducts(simpleProducts || []);
+        return;
+
+      console.log('✅ PRODUCTS FETCHED:', products);
+      console.log('✅ COUNT:', products?.length || 0);
+      setProducts(products || []);
+
     } catch (error: any) {
-      console.error('❌ PRODUCTS FETCH ERROR:', error);
+      console.error('❌ FETCH ERROR:', error);
       setErrorMsg('Failed to fetch products. Please try again.');
-      console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
