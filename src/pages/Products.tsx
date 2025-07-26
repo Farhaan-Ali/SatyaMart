@@ -78,6 +78,61 @@ export default function Products() {
     status: 'active',
     image_url: '',
     sku: ''
+  });
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchProducts();
+    }
+  }, [user?.id]);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      
+      console.log('🔍 FETCHING PRODUCTS...');
+      console.log('👤 USER:', user?.id);
+      console.log('🎭 ROLE:', userRole?.role);
+
+      let query = supabase.from('products');
+
+      // Filter based on user role
+      if (userRole?.role === 'supplier') {
+        // Suppliers see only their own products
+        const { data: supplierData } = await supabase
+          .from('suppliers')
+          .select('id')
+          .eq('user_id', user?.id)
+          .single();
+
+        if (supplierData) {
+          query = query.eq('supplier_id', supplierData.id);
+        } else {
+          // No supplier record found, create sample data
+          await createSampleDataIfNeeded();
+          return;
+        }
+      } else if (userRole?.role === 'vendor') {
+        // Vendors see products from approved suppliers only
+        const { data: approvedSuppliers } = await supabase
+          .from('suppliers')
+          .select('id')
+          .eq('status', 'active');
+
+        if (approvedSuppliers && approvedSuppliers.length > 0) {
+          const supplierIds = approvedSuppliers.map(s => s.id);
+          query = query.in('supplier_id', supplierIds);
+        } else {
+          // No approved suppliers
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
+      }
+      // Superadmin sees all products (no additional filter)
+
+      const { data: products, error } = await query
         .select(`
           *,
           suppliers (
@@ -95,6 +150,7 @@ export default function Products() {
         console.log('📦 Fallback products:', simpleProducts);
         setProducts(simpleProducts || []);
         return;
+      }
 
       console.log('✅ PRODUCTS FETCHED:', products);
       console.log('✅ COUNT:', products?.length || 0);
