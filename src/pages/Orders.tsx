@@ -48,6 +48,12 @@ interface Order {
     full_name: string;
     company_name: string;
   };
+  users?: {
+    vendor_profiles?: {
+      full_name: string;
+      company_name: string;
+    };
+  };
 }
 
 export default function Orders() {
@@ -82,10 +88,6 @@ export default function Orders() {
             id,
             name,
             contact_email
-          ),
-          vendor_profiles!orders_user_id_fkey (
-            full_name,
-            company_name
           )
         `);
 

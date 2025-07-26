@@ -71,7 +71,11 @@ export function SupplierDashboard() {
         .select(`
           *,
           products (name),
-          vendor_profiles (full_name, company_name)
+          suppliers (name),
+          users!orders_user_id_fkey (
+            id,
+            vendor_profiles (full_name, company_name)
+          )
         `)
         .eq('supplier_id', supplierData.id)
         .order('created_at', { ascending: false })
@@ -192,7 +196,7 @@ export function SupplierDashboard() {
                         <div>
                           <p className="font-medium">{order.products?.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {order.profiles?.company_name || order.profiles?.full_name}
+                            From: {order.users?.vendor_profiles?.company_name || order.users?.vendor_profiles?.full_name || 'Unknown Customer'}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Qty: {order.quantity} • ₹{order.total_amount}
