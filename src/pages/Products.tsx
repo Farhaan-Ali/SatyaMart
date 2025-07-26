@@ -149,6 +149,7 @@ export default function Products() {
       if (finalError) throw finalError;
       
       if (!finalProducts || finalProducts.length === 0) {
+        console.log('❌ Still no products found after sample data creation');
         setProducts([]);
         setLoading(false);
         return;
@@ -166,41 +167,8 @@ export default function Products() {
         .select('*');
       console.log('🔍 ALL USER ROLES IN DATABASE:', allUserRoles);
 
-      // If supplier, only show their products
-      // If vendor, show all active products from approved suppliers
-      // If superadmin, show all products
-      if (userRole?.role === 'supplier') {
-        console.log('👤 SUPPLIER MODE - fetching supplier record');
-        // Ensure supplier record exists first
-        const supplierData = await ensureSupplierRecord();
-        
-        if (supplierData) {
-          console.log('✅ Supplier record found:', supplierData);
-          query = query.eq('supplier_id', supplierData.id);
-        } else {
-          console.log('❌ No supplier record found for user');
-        }
-      } else if (userRole?.role === 'vendor') {
-        console.log('🛒 VENDOR MODE - showing all active products (temporarily)');
-        
-        // FOR DEBUGGING: Show ALL active products to vendors (remove approval filtering)
-        query = query.eq('status', 'active');
-        console.log('🛒 Vendor query: showing all active products');
-      } else {
-        console.log('👑 SUPERADMIN MODE - showing all products');
-      }
-
-      // Apply filters
-      if (statusFilter !== 'all') {
-        console.log('🔍 Applying status filter:', statusFilter);
-        query = query.eq('status', statusFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      console.log('✅ FINAL FETCHED PRODUCTS:', data);
-      console.log('✅ Number of products fetched:', data?.length || 0);
+      console.log('✅ FINAL FETCHED PRODUCTS:', finalProducts);
+      console.log('✅ Number of products fetched:', finalProducts?.length || 0);
       console.log('=== PRODUCTS DEBUG END ===');
 
       setProducts(finalProducts || []);
@@ -302,14 +270,15 @@ export default function Products() {
       if (sampleProducts.length > 0) {
         console.log('🔧 Creating products:', sampleProducts.map(p => p.sku));
         
+        // Use upsert to handle potential duplicates
         const { data: createdProducts, error: productsError } = await supabase
           .from('products')
-          .insert(sampleProducts)
+          .upsert(sampleProducts, { onConflict: 'sku' })
           .select();
         
         if (productsError) {
           console.error('❌ Error creating sample products:', productsError);
-          return;
+          // Don't return here, continue to try fetching existing products
         }
         
         console.log('✅ Created sample products:', createdProducts);
