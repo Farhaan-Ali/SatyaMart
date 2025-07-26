@@ -112,6 +112,41 @@ export default function Products() {
       
       if (!allProducts || allProducts.length === 0) {
         console.log('❌ NO PRODUCTS FOUND IN DATABASE AT ALL');
+        console.log('🔧 Let me try to create some sample data...');
+        
+        // Try to create sample data if no products exist
+        await createSampleDataIfNeeded();
+        
+        // Retry fetching after creating sample data
+        const { data: retryProducts, error: retryError } = await supabase
+          .from('products')
+          .select('*');
+        
+        if (retryProducts && retryProducts.length > 0) {
+          console.log('✅ Sample data created! Found products:', retryProducts);
+          // Continue with the normal flow
+        } else {
+          console.log('❌ Still no products after sample data creation');
+          setProducts([]);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Re-fetch all products after potential sample data creation
+      const { data: finalProducts, error: finalError } = await supabase
+        .from('products')
+        .select(`
+          *,
+          suppliers (
+            name,
+            contact_email
+          )
+        `);
+      
+      if (finalError) throw finalError;
+      
+      if (!finalProducts || finalProducts.length === 0) {
         setProducts([]);
         setLoading(false);
         return;
@@ -166,13 +201,101 @@ export default function Products() {
       console.log('✅ Number of products fetched:', data?.length || 0);
       console.log('=== PRODUCTS DEBUG END ===');
 
-      setProducts(data || []);
+      setProducts(finalProducts || []);
     } catch (error: any) {
       console.error('❌ PRODUCTS FETCH ERROR:', error);
       setErrorMsg('Failed to fetch products. Please try again.');
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createSampleDataIfNeeded = async () => {
+    try {
+      console.log('🔧 Creating sample data...');
+      
+      // First, check if we have any suppliers
+      const { data: existingSuppliers } = await supabase
+        .from('suppliers')
+        .select('*')
+        .limit(1);
+      
+      let supplierId = existingSuppliers?.[0]?.id;
+      
+      if (!supplierId) {
+        console.log('🔧 No suppliers found, creating sample supplier...');
+        
+        // Create a sample supplier first
+        const { data: newSupplier, error: supplierError } = await supabase
+          .from('suppliers')
+          .insert({
+            user_id: user?.id || 'sample-user-id',
+            name: 'Sample Supplier Co.',
+            contact_email: 'contact@samplesupplier.com',
+            address: '123 Sample Street, Sample City',
+            status: 'active'
+          })
+          .select()
+          .single();
+        
+        if (supplierError) {
+          console.error('❌ Error creating sample supplier:', supplierError);
+          return;
+        }
+        
+        supplierId = newSupplier.id;
+        console.log('✅ Created sample supplier:', newSupplier);
+      }
+      
+      // Now create sample products
+      const sampleProducts = [
+        {
+          name: 'Premium Rice',
+          description: 'High-quality basmati rice, perfect for all occasions',
+          unit_price: 150.00,
+          stock_quantity: 100,
+          min_stock_level: 20,
+          status: 'active',
+          sku: 'RICE-001',
+          supplier_id: supplierId
+        },
+        {
+          name: 'Organic Wheat Flour',
+          description: 'Freshly ground organic wheat flour',
+          unit_price: 80.00,
+          stock_quantity: 50,
+          min_stock_level: 10,
+          status: 'active',
+          sku: 'FLOUR-001',
+          supplier_id: supplierId
+        },
+        {
+          name: 'Fresh Vegetables Mix',
+          description: 'Assorted fresh vegetables from local farms',
+          unit_price: 120.00,
+          stock_quantity: 30,
+          min_stock_level: 5,
+          status: 'active',
+          sku: 'VEG-001',
+          supplier_id: supplierId
+        }
+      ];
+      
+      const { data: createdProducts, error: productsError } = await supabase
+        .from('products')
+        .insert(sampleProducts)
+        .select();
+      
+      if (productsError) {
+        console.error('❌ Error creating sample products:', productsError);
+        return;
+      }
+      
+      console.log('✅ Created sample products:', createdProducts);
+      
+    } catch (error) {
+      console.error('❌ Error in createSampleDataIfNeeded:', error);
     }
   };
 
