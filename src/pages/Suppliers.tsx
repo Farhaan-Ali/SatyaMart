@@ -62,25 +62,41 @@ export default function Suppliers() {
     try {
       console.log('Fetching suppliers for role:', userRole?.role);
       
-      // Get supplier profiles with their user roles
+      // First, get all supplier profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('supplier_profiles')
-        .select(`
-          *,
-          users!supplier_profiles_user_id_fkey (
-            id,
-            user_roles (role, approval_status)
-          )
-        `);
+        .select('*');
 
       if (profilesError) throw profilesError;
-      console.log('Found supplier profiles with roles:', profiles);
+      console.log('Found supplier profiles:', profiles);
 
-      // Transform the data to match our interface
-      const combined = profiles?.map(profile => ({
+      if (!profiles || profiles.length === 0) {
+        console.log('No supplier profiles found');
+        setSuppliers([]);
+        return;
+      }
+
+      // Extract user IDs from profiles
+      const userIds = profiles.map(profile => profile.user_id);
+      console.log('User IDs to fetch roles for:', userIds);
+
+      // Fetch user roles for these user IDs
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role, approval_status')
+        .in('user_id', userIds);
+
+      if (rolesError) throw rolesError;
+      console.log('Found user roles:', userRoles);
+
+      // Manually combine the data
+      const combined = profiles.map(profile => {
+        const userRole = userRoles?.find(role => role.user_id === profile.user_id);
+        return {
         ...profile,
-        user_roles: profile.users?.user_roles?.[0] // Get the first (and should be only) user role
-      })).filter(supplier => supplier.user_roles?.role === 'supplier') || [];
+        user_roles: userRole
+        };
+      }).filter(supplier => supplier.user_roles?.role === 'supplier');
 
       console.log('Combined supplier data:', combined);
 
