@@ -497,12 +497,12 @@ export default function Orders() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center space-x-2">
                       <User className="w-4 h-4 text-muted-foreground" />
-                      <span>{selectedOrder.profiles?.full_name}</span>
+                      <span>{selectedOrder.vendor_profiles?.full_name}</span>
                     </div>
-                    {selectedOrder.profiles?.company_name && (
+                    {selectedOrder.vendor_profiles?.company_name && (
                       <div className="flex items-center space-x-2">
                         <Building2 className="w-4 h-4 text-muted-foreground" />
-                        <span>{selectedOrder.profiles.company_name}</span>
+                        <span>{selectedOrder.vendor_profiles.company_name}</span>
                       </div>
                     )}
                   </div>
@@ -551,4 +551,4 @@ export default function Orders() {
       )}
     </div>
   );
-} 
+}
