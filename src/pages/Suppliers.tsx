@@ -171,16 +171,19 @@ export default function Suppliers() {
       default: return <Clock className="w-4 h-4" />;
     }
   };
+  // Filter suppliers based on user role
+  const getFilteredSuppliers = () => {
+    if (userRole?.role === 'superadmin') {
+      return filteredSuppliers; // Show all suppliers
+    } else {
+      // For vendors, only show approved suppliers
+      return filteredSuppliers.filter(supplier => 
+        supplier.user_roles?.approval_status === 'approved'
+      );
+    }
+  };
 
-  if (userRole?.role !== 'superadmin') {
-    return (
-      <div className="text-center py-12">
-        <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">Access Denied</h3>
-        <p className="text-muted-foreground">Only superadmins can access supplier management.</p>
-      </div>
-    );
-  }
+  const displaySuppliers = getFilteredSuppliers();
 
   return (
     <div className="space-y-6">
@@ -192,7 +195,11 @@ export default function Suppliers() {
           </div>
           <div>
             <h1 className="text-3xl font-bold">Suppliers</h1>
-            <p className="text-muted-foreground">Manage all registered suppliers on the platform</p>
+            <p className="text-muted-foreground">
+              {userRole?.role === 'superadmin' 
+                ? 'Manage all registered suppliers on the platform'
+                : 'Browse verified suppliers on the platform'}
+            </p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={fetchSuppliers} disabled={loading}>
@@ -243,7 +250,7 @@ export default function Suppliers() {
         <div className="text-center py-12 text-muted-foreground">Loading suppliers...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSuppliers.map((supplier) => (
+          {displaySuppliers.map((supplier) => (
             <Card key={supplier.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -297,7 +304,7 @@ export default function Suppliers() {
                       <Eye className="w-4 h-4 mr-1" />
                       View Details
                     </Button>
-                    {supplier.user_roles?.approval_status === 'pending' && (
+                    {userRole?.role === 'superadmin' && supplier.user_roles?.approval_status === 'pending' && (
                       <div className="flex space-x-1">
                         <Button
                           size="sm"
@@ -334,7 +341,9 @@ export default function Suppliers() {
             <p className="text-muted-foreground">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Try adjusting your search or filters' 
-                : 'No suppliers are currently registered'}
+                : userRole?.role === 'superadmin'
+                ? 'No suppliers are currently registered'
+                : 'No approved suppliers are currently available'}
             </p>
           </CardContent>
         </Card>

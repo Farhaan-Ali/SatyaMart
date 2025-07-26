@@ -107,7 +107,8 @@ export default function Products() {
       console.log('All products error:', allProductsError);
 
       // If supplier, only show their products
-      // If vendor or superadmin, show all products (not just active ones)
+      // If vendor, show all active products from approved suppliers
+      // If superadmin, show all products
       if (userRole?.role === 'supplier') {
         // Ensure supplier record exists first
         const supplierData = await ensureSupplierRecord();
@@ -115,9 +116,41 @@ export default function Products() {
         if (supplierData) {
           query = query.eq('supplier_id', supplierData.id);
         }
+      } else if (userRole?.role === 'vendor') {
+        // For vendors, only show active products from approved suppliers
+        // First get approved supplier IDs
+        const { data: approvedSuppliers } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'supplier')
+          .eq('approval_status', 'approved');
+
+        if (approvedSuppliers && approvedSuppliers.length > 0) {
+          const approvedUserIds = approvedSuppliers.map(s => s.user_id);
+          
+          // Get supplier records for approved users
+          const { data: supplierRecords } = await supabase
+            .from('suppliers')
+            .select('id')
+            .in('user_id', approvedUserIds);
+
+          if (supplierRecords && supplierRecords.length > 0) {
+            const supplierIds = supplierRecords.map(s => s.id);
+            query = query
+              .in('supplier_id', supplierIds)
+              .eq('status', 'active'); // Only show active products to vendors
+          } else {
+            // No approved suppliers found, return empty result
+            setProducts([]);
+            return;
+          }
+        } else {
+          // No approved suppliers found, return empty result
+          setProducts([]);
+          return;
+        }
       } else {
-        // For vendors and superadmins, show all products regardless of status
-        // This ensures vendors can see products even if they're not marked as 'active'
+        // For superadmins, show all products regardless of status
       }
 
       // Apply filters
@@ -130,16 +163,15 @@ export default function Products() {
 
       console.log('Fetched products:', data);
       console.log('User role:', userRole?.role);
-      console.log('Query:', query);
 
       setProducts(data || []);
       
       // Debug: If no products found and user is vendor, show a message
       if ((data || []).length === 0 && userRole?.role === 'vendor') {
         console.log('No products found for vendor. This might be because:');
-        console.log('1. No products have been added by suppliers yet');
-        console.log('2. Products exist but are not properly linked to suppliers');
-        console.log('3. Database connection issues');
+        console.log('1. No approved suppliers have added products yet');
+        console.log('2. No products are marked as active');
+        console.log('3. Suppliers need to be approved first');
       }
     } catch (error: any) {
       setErrorMsg('Failed to fetch products. Please try again.');
@@ -724,7 +756,7 @@ export default function Products() {
                 : userRole?.role === 'supplier'
                 ? 'Start by adding your first product'
                 : userRole?.role === 'vendor'
-                ? 'No products are currently available from suppliers. Suppliers need to add products first.'
+                ? 'No products are currently available from approved suppliers.'
                 : 'No products are currently available'}
             </p>
             {userRole?.role === 'supplier' && (
@@ -736,12 +768,12 @@ export default function Products() {
             {userRole?.role === 'vendor' && (
               <div className="mt-4 space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  To see products, suppliers need to:
+                  To see products here, suppliers need to:
                 </p>
                 <ul className="text-sm text-muted-foreground text-left max-w-md mx-auto">
                   <li>• Register as suppliers</li>
                   <li>• Get approved by superadmin</li>
-                  <li>• Add products to their catalog</li>
+                  <li>• Add active products to their catalog</li>
                 </ul>
               </div>
             )}
