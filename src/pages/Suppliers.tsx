@@ -60,7 +60,8 @@ export default function Suppliers() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      console.log('Fetching suppliers for role:', userRole?.role);
+      console.log('=== SUPPLIERS DEBUG START ===');
+      console.log('Current user role:', userRole?.role);
       
       // First, get all supplier profiles
       const { data: profiles, error: profilesError } = await supabase
@@ -68,10 +69,11 @@ export default function Suppliers() {
         .select('*');
 
       if (profilesError) throw profilesError;
-      console.log('Found supplier profiles:', profiles);
+      console.log('RAW supplier profiles from DB:', profiles);
+      console.log('Number of supplier profiles:', profiles?.length || 0);
 
       if (!profiles || profiles.length === 0) {
-        console.log('No supplier profiles found');
+        console.log('❌ NO SUPPLIER PROFILES FOUND IN DATABASE');
         setSuppliers([]);
         return;
       }
@@ -87,21 +89,32 @@ export default function Suppliers() {
         .in('user_id', userIds);
 
       if (rolesError) throw rolesError;
-      console.log('Found user roles:', userRoles);
+      console.log('RAW user roles from DB:', userRoles);
+      console.log('Number of user roles:', userRoles?.length || 0);
 
       // Manually combine the data
       const combined = profiles.map(profile => {
         const userRole = userRoles?.find(role => role.user_id === profile.user_id);
+        console.log(`Profile ${profile.business_name} has role:`, userRole);
         return {
-        ...profile,
-        user_roles: userRole
+          ...profile,
+          user_roles: userRole
         };
-      }).filter(supplier => supplier.user_roles?.role === 'supplier');
+      });
+      
+      console.log('Combined data before filtering:', combined);
+      
+      // Filter only suppliers
+      const suppliersOnly = combined.filter(supplier => supplier.user_roles?.role === 'supplier');
+      console.log('After supplier role filter:', suppliersOnly);
+      
+      // FOR DEBUGGING: Show ALL suppliers regardless of approval status
+      console.log('Final suppliers to display:', suppliersOnly);
+      console.log('=== SUPPLIERS DEBUG END ===');
 
-      console.log('Combined supplier data:', combined);
-
-      setSuppliers(combined);
+      setSuppliers(suppliersOnly);
     } catch (error: any) {
+      console.error('❌ SUPPLIERS FETCH ERROR:', error);
       setErrorMsg('Failed to fetch suppliers. Please try again.');
       console.error('Error fetching suppliers:', error);
     } finally {
@@ -186,13 +199,15 @@ export default function Suppliers() {
   };
   // Filter suppliers based on user role
   const getFilteredSuppliers = () => {
-    if (userRole?.role === 'superadmin') {
-      return filteredSuppliers; // Show all suppliers
-    } else {
-      // For now, show all suppliers to vendors (we'll fix approval logic later)
-      console.log('Filtering suppliers for vendor, showing all suppliers');
-      return filteredSuppliers;
-    }
+    console.log('=== FILTERING SUPPLIERS ===');
+    console.log('All suppliers before filtering:', suppliers);
+    console.log('Search term:', searchTerm);
+    console.log('Status filter:', statusFilter);
+    console.log('Filtered suppliers:', filteredSuppliers);
+    console.log('User role:', userRole?.role);
+    
+    // FOR DEBUGGING: Show ALL suppliers to everyone
+    return filteredSuppliers;
   };
 
   const displaySuppliers = getFilteredSuppliers();

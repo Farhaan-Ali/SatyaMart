@@ -88,7 +88,9 @@ export default function Products() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      console.log('Fetching products for role:', userRole?.role);
+      console.log('=== PRODUCTS DEBUG START ===');
+      console.log('Current user role:', userRole?.role);
+      console.log('Current user ID:', user?.id);
       
       let query = supabase
         .from('products')
@@ -100,45 +102,73 @@ export default function Products() {
           )
         `);
 
-      // Debug: First check if any products exist at all
+      // First check if ANY products exist at all
       const { data: allProducts, error: allProductsError } = await supabase
         .from('products')
         .select('*');
       
-      console.log('All products in database:', allProducts);
+      console.log('🔍 ALL PRODUCTS IN DATABASE:', allProducts);
+      console.log('🔍 Number of products in DB:', allProducts?.length || 0);
+      
+      if (!allProducts || allProducts.length === 0) {
+        console.log('❌ NO PRODUCTS FOUND IN DATABASE AT ALL');
+        setProducts([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Check all suppliers
+      const { data: allSuppliers, error: allSuppliersError } = await supabase
+        .from('suppliers')
+        .select('*');
+      console.log('🔍 ALL SUPPLIERS IN DATABASE:', allSuppliers);
+      
+      // Check all user roles
+      const { data: allUserRoles, error: allUserRolesError } = await supabase
+        .from('user_roles')
+        .select('*');
+      console.log('🔍 ALL USER ROLES IN DATABASE:', allUserRoles);
 
       // If supplier, only show their products
       // If vendor, show all active products from approved suppliers
       // If superadmin, show all products
       if (userRole?.role === 'supplier') {
+        console.log('👤 SUPPLIER MODE - fetching supplier record');
         // Ensure supplier record exists first
         const supplierData = await ensureSupplierRecord();
         
         if (supplierData) {
+          console.log('✅ Supplier record found:', supplierData);
           query = query.eq('supplier_id', supplierData.id);
+        } else {
+          console.log('❌ No supplier record found for user');
         }
       } else if (userRole?.role === 'vendor') {
-        console.log('Vendor detected, fetching approved suppliers...');
+        console.log('🛒 VENDOR MODE - showing all active products (temporarily)');
         
-        // For now, show all active products to vendors
+        // FOR DEBUGGING: Show ALL active products to vendors (remove approval filtering)
         query = query.eq('status', 'active');
+        console.log('🛒 Vendor query: showing all active products');
       } else {
-        // For superadmins, show all products regardless of status
-        console.log('Superadmin detected, showing all products');
+        console.log('👑 SUPERADMIN MODE - showing all products');
       }
 
       // Apply filters
       if (statusFilter !== 'all') {
+        console.log('🔍 Applying status filter:', statusFilter);
         query = query.eq('status', statusFilter);
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      console.log('Fetched products:', data);
+      console.log('✅ FINAL FETCHED PRODUCTS:', data);
+      console.log('✅ Number of products fetched:', data?.length || 0);
+      console.log('=== PRODUCTS DEBUG END ===');
 
       setProducts(data || []);
     } catch (error: any) {
+      console.error('❌ PRODUCTS FETCH ERROR:', error);
       setErrorMsg('Failed to fetch products. Please try again.');
       console.error('Error fetching products:', error);
     } finally {
@@ -292,6 +322,7 @@ export default function Products() {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    console.log(`Product ${product.name} matches search "${searchTerm}":`, matchesSearch);
     return matchesSearch;
   });
 
