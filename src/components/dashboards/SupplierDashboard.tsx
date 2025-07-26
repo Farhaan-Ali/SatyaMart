@@ -66,21 +66,38 @@ export function SupplierDashboard() {
       const pendingOrders = orders?.filter(o => o.status === 'pending') || [];
       const totalRevenue = orders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
       // Get recent orders
-      const { data: recentOrdersData, error: recentOrdersError } = await supabase
+      const { data: ordersData, error: recentOrdersError } = await supabase
         .from('orders')
         .select(`
           *,
-          products (name),
-          suppliers (name),
-          users!orders_user_id_fkey (
-            id,
-            vendor_profiles (full_name, company_name)
-          )
+          products (name)
         `)
         .eq('supplier_id', supplierData.id)
         .order('created_at', { ascending: false })
         .limit(5);
       if (recentOrdersError) throw recentOrdersError;
+
+      // Get vendor profiles for the orders
+      let recentOrdersData = ordersData || [];
+      if (ordersData && ordersData.length > 0) {
+        const userIds = [...new Set(ordersData.map(order => order.user_id))];
+        
+        const { data: vendorProfiles, error: vendorProfilesError } = await supabase
+          .from('vendor_profiles')
+          .select('user_id, full_name, company_name')
+          .in('user_id', userIds);
+        
+        if (!vendorProfilesError && vendorProfiles) {
+          // Merge vendor profiles into orders
+          recentOrdersData = ordersData.map(order => ({
+            ...order,
+            users: {
+              id: order.user_id,
+              vendor_profiles: vendorProfiles.find(profile => profile.user_id === order.user_id) || null
+            }
+          }));
+        }
+      }
       setStats({
         totalProducts: products?.length || 0,
         activeProducts: activeProducts.length,
