@@ -256,7 +256,16 @@ export default function Products() {
         console.log('✅ Created sample supplier:', newSupplier);
       }
       
-      // Now create sample products
+      // Check if sample products already exist
+      const { data: existingProducts } = await supabase
+        .from('products')
+        .select('sku')
+        .in('sku', ['RICE-001', 'FLOUR-001', 'VEG-001']);
+      
+      const existingSKUs = existingProducts?.map(p => p.sku) || [];
+      console.log('🔍 Existing SKUs:', existingSKUs);
+      
+      // Only create products that don't already exist
       const sampleProducts = [
         {
           name: 'Premium Rice',
@@ -288,19 +297,25 @@ export default function Products() {
           sku: 'VEG-001',
           supplier_id: supplierId
         }
-      ];
+      ].filter(product => !existingSKUs.includes(product.sku));
       
-      const { data: createdProducts, error: productsError } = await supabase
-        .from('products')
-        .insert(sampleProducts)
-        .select();
-      
-      if (productsError) {
-        console.error('❌ Error creating sample products:', productsError);
-        return;
+      if (sampleProducts.length > 0) {
+        console.log('🔧 Creating products:', sampleProducts.map(p => p.sku));
+        
+        const { data: createdProducts, error: productsError } = await supabase
+          .from('products')
+          .insert(sampleProducts)
+          .select();
+        
+        if (productsError) {
+          console.error('❌ Error creating sample products:', productsError);
+          return;
+        }
+        
+        console.log('✅ Created sample products:', createdProducts);
+      } else {
+        console.log('✅ All sample products already exist, skipping creation');
       }
-      
-      console.log('✅ Created sample products:', createdProducts);
       
     } catch (error) {
       console.error('❌ Error in createSampleDataIfNeeded:', error);
@@ -1152,4 +1167,4 @@ export default function Products() {
       )}
     </div>
   );
-} 
+}
