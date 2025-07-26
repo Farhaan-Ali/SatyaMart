@@ -81,8 +81,10 @@ export default function Products() {
   });
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (user?.id) {
+      fetchProducts();
+    }
+  }, [user?.id]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -212,6 +214,12 @@ export default function Products() {
   };
 
   const createSampleDataIfNeeded = async () => {
+    // Don't create sample data if user is not authenticated
+    if (!user?.id) {
+      console.log('❌ Cannot create sample data: user not authenticated');
+      return;
+    }
+
     try {
       console.log('🔧 Creating sample data...');
       
@@ -230,7 +238,7 @@ export default function Products() {
         const { data: newSupplier, error: supplierError } = await supabase
           .from('suppliers')
           .insert({
-            user_id: user?.id || 'sample-user-id',
+            user_id: user.id,
             name: 'Sample Supplier Co.',
             contact_email: 'contact@samplesupplier.com',
             address: '123 Sample Street, Sample City',
