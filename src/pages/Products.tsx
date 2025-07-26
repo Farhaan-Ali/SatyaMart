@@ -94,21 +94,11 @@ export default function Products() {
       console.log('Current user role:', userRole?.role);
       console.log('Current user ID:', user?.id);
       
-      let query = supabase
-        .from('products')
-        .select(`
-          *,
-          suppliers (
-            name,
-            contact_email
-          )
-        `);
-
-      // First check if ANY products exist at all
+      // First, let's just get ALL products without any complex queries
       const { data: allProducts, error: allProductsError } = await supabase
         .from('products')
         .select('*');
-      
+
       console.log('🔍 ALL PRODUCTS IN DATABASE:', allProducts);
       console.log('🔍 Number of products in DB:', allProducts?.length || 0);
       
@@ -116,27 +106,32 @@ export default function Products() {
         console.log('❌ NO PRODUCTS FOUND IN DATABASE AT ALL');
         console.log('🔧 Let me try to create some sample data...');
         
-        // Try to create sample data if no products exist
-        await createSampleDataIfNeeded();
+        // Only create sample data if user is authenticated
+        if (user?.id) {
+          await createSampleDataIfNeeded();
+        }
         
-        // Retry fetching after creating sample data
-        const { data: retryProducts, error: retryError } = await supabase
+        // Retry fetching all products after creating sample data
+        const { data: retryProducts } = await supabase
           .from('products')
           .select('*');
         
-        if (retryProducts && retryProducts.length > 0) {
-          console.log('✅ Sample data created! Found products:', retryProducts);
-          // Continue with the normal flow
-        } else {
+        console.log('🔄 RETRY: Products after sample data creation:', retryProducts);
+        
+        if (!retryProducts || retryProducts.length === 0) {
           console.log('❌ Still no products after sample data creation');
           setProducts([]);
-          setLoading(false);
           return;
         }
+        
+        // Use the retry products
+        console.log('✅ Using retry products:', retryProducts);
+        setProducts(retryProducts);
+        return;
       }
       
-      // Re-fetch all products after potential sample data creation
-      const { data: finalProducts, error: finalError } = await supabase
+      // If we have products, get them with supplier info
+      const { data: productsWithSuppliers, error: suppliersError } = await supabase
         .from('products')
         .select(`
           *,
@@ -146,32 +141,15 @@ export default function Products() {
           )
         `);
       
-      if (finalError) throw finalError;
-      
-      if (!finalProducts || finalProducts.length === 0) {
-        console.log('❌ Still no products found after sample data creation');
-        setProducts([]);
-        setLoading(false);
-        return;
+      if (suppliersError) {
+        console.log('⚠️ Error fetching supplier info, using products without supplier data');
+        setProducts(allProducts);
+      } else {
+        console.log('✅ FINAL FETCHED PRODUCTS WITH SUPPLIERS:', productsWithSuppliers);
+        setProducts(productsWithSuppliers || allProducts);
       }
       
-      // Check all suppliers
-      const { data: allSuppliers, error: allSuppliersError } = await supabase
-        .from('suppliers')
-        .select('*');
-      console.log('🔍 ALL SUPPLIERS IN DATABASE:', allSuppliers);
-      
-      // Check all user roles
-      const { data: allUserRoles, error: allUserRolesError } = await supabase
-        .from('user_roles')
-        .select('*');
-      console.log('🔍 ALL USER ROLES IN DATABASE:', allUserRoles);
-
-      console.log('✅ FINAL FETCHED PRODUCTS:', finalProducts);
-      console.log('✅ Number of products fetched:', finalProducts?.length || 0);
       console.log('=== PRODUCTS DEBUG END ===');
-
-      setProducts(finalProducts || []);
     } catch (error: any) {
       console.error('❌ PRODUCTS FETCH ERROR:', error);
       setErrorMsg('Failed to fetch products. Please try again.');
@@ -224,16 +202,8 @@ export default function Products() {
         console.log('✅ Created sample supplier:', newSupplier);
       }
       
-      // Check if sample products already exist
-      const { data: existingProducts } = await supabase
-        .from('products')
-        .select('sku')
-        .in('sku', ['RICE-001', 'FLOUR-001', 'VEG-001']);
-      
-      const existingSKUs = existingProducts?.map(p => p.sku) || [];
-      console.log('🔍 Existing SKUs:', existingSKUs);
-      
-      // Only create products that don't already exist
+      // Create sample products with unique SKUs
+      const timestamp = Date.now();
       const sampleProducts = [
         {
           name: 'Premium Rice',
@@ -242,7 +212,7 @@ export default function Products() {
           stock_quantity: 100,
           min_stock_level: 20,
           status: 'active',
-          sku: 'RICE-001',
+          sku: `RICE-${timestamp}`,
           supplier_id: supplierId
         },
         {
@@ -252,7 +222,7 @@ export default function Products() {
           stock_quantity: 50,
           min_stock_level: 10,
           status: 'active',
-          sku: 'FLOUR-001',
+          sku: `FLOUR-${timestamp}`,
           supplier_id: supplierId
         },
         {
@@ -262,30 +232,24 @@ export default function Products() {
           stock_quantity: 30,
           min_stock_level: 5,
           status: 'active',
-          sku: 'VEG-001',
+          sku: `VEG-${timestamp}`,
           supplier_id: supplierId
         }
-      ].filter(product => !existingSKUs.includes(product.sku));
+      ];
       
-      if (sampleProducts.length > 0) {
-        console.log('🔧 Creating products:', sampleProducts.map(p => p.sku));
-        
-        // Use upsert to handle potential duplicates
-        const { data: createdProducts, error: productsError } = await supabase
-          .from('products')
-          .upsert(sampleProducts, { onConflict: 'sku' })
-          .select();
-        
-        if (productsError) {
-          console.error('❌ Error creating sample products:', productsError);
-          // Don't return here, continue to try fetching existing products
-        }
-        
-        console.log('✅ Created sample products:', createdProducts);
-      } else {
-        console.log('✅ All sample products already exist, skipping creation');
+      console.log('🔧 Creating products with unique SKUs:', sampleProducts.map(p => p.sku));
+      
+      const { data: createdProducts, error: productsError } = await supabase
+        .from('products')
+        .insert(sampleProducts)
+        .select();
+      
+      if (productsError) {
+        console.error('❌ Error creating sample products:', productsError);
+        return;
       }
       
+      console.log('✅ Created sample products:', createdProducts);
     } catch (error) {
       console.error('❌ Error in createSampleDataIfNeeded:', error);
     }
