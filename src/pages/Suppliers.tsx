@@ -104,9 +104,10 @@ export default function Suppliers() {
       
       console.log('Combined data before filtering:', combined);
       
-      // Filter only suppliers
-      const suppliersOnly = combined.filter(supplier => supplier.user_roles?.role === 'supplier');
-      console.log('After supplier role filter:', suppliersOnly);
+      // FOR DEBUGGING: Show ALL supplier profiles regardless of role status
+      // The issue is that user_roles table is missing entries for these users
+      const suppliersOnly = combined; // Show all profiles for now
+      console.log('After supplier role filter (DISABLED FOR DEBUG):', suppliersOnly);
       
       // FOR DEBUGGING: Show ALL suppliers regardless of approval status
       console.log('Final suppliers to display:', suppliersOnly);
